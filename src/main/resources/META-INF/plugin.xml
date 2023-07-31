@@ -16,10 +16,15 @@
     <!-- Product and plugin compatibility requirements.
          Read more: https://plugins.jetbrains.com/docs/intellij/plugin-compatibility.html -->
     <depends>com.intellij.modules.platform</depends>
+    <depends>com.intellij.modules.vcs</depends>
+    <depends>com.intellij.modules.xml</depends>
+
+    <depends>Git4Idea</depends>
 
     <!-- Extension points defined by the plugin.
          Read more: https://plugins.jetbrains.com/docs/intellij/plugin-extension-points.html -->
     <extensions defaultExtensionNs="com.intellij">
-
+        <tasks.contextProvider implementation="org.kylchik.gitworktreecheckout.worktree.MyContextProvider"/>
+        <notificationGroup id="MyContextProvider Notification Group" displayType="BALLOON"/>
     </extensions>
 </idea-plugin>

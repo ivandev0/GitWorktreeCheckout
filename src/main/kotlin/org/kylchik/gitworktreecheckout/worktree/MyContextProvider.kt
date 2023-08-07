@@ -28,6 +28,7 @@ class MyContextProvider: WorkingContextProvider() {
         val currentProjectPath = gitRepositoryManager.repositories[0].root.path + File.separator
         val allProjects = gitRepositoryManager.allProjectsOfGivenGit() ?: return
         val allProjectsExceptCurrent = allProjects.filter { it != currentProjectPath }
+        if (allProjectsExceptCurrent.isEmpty()) return
 
         val fileEditorManager = FileEditorManager.getInstance(project)
         val openedFiles = fileEditorManager.openFiles
@@ -35,25 +36,13 @@ class MyContextProvider: WorkingContextProvider() {
         val filesWithWrongPath = openedFiles.filter {
             openedFile -> allProjectsExceptCurrent.any { worktree -> openedFile.path.startsWith(worktree) }
         }
+
         if (filesWithWrongPath.isNotEmpty()) {
-            val notification = NOTIFICATION.createNotification("Some wrong files were detected", NotificationType.INFORMATION)
-            notification.addAction(object : NotificationAction("Change path") {
-                override fun actionPerformed(e: AnActionEvent, notification: Notification) {
-                    openedFiles.forEach { openedFile ->
-                        fileEditorManager.closeFile(openedFile)
-
-                        val wrongPath = allProjectsExceptCurrent.firstOrNull { worktree -> openedFile.path.startsWith(worktree) }
-                        val fileWithCorrectPath = if (wrongPath != null) {
-                            val correctPath = Path(openedFile.path.replace(wrongPath, currentProjectPath))
-                            VfsUtil.findFile(correctPath, true) ?: openedFile
-                        } else {
-                            openedFile
-                        }
-
-                        fileEditorManager.openFile(fileWithCorrectPath, false)
-                    }
-                }
-            }).notify(project)
+            val message = "There are files with wrong path that were opened in different worktree"
+            NOTIFICATION
+                .createNotification(message, NotificationType.INFORMATION)
+                .addAction(ChangePathAction(currentProjectPath, allProjectsExceptCurrent))
+                .notify(project)
         }
     }
 
@@ -68,5 +57,30 @@ class MyContextProvider: WorkingContextProvider() {
         } ?: return null
         val worktreesPaths = locationOfGitDirInWorktrees.map { it.removeSuffix(".git") }
         return listOf(mainRepositoryPath) + worktreesPaths
+    }
+}
+
+private class ChangePathAction(
+    private val currentProjectPath: String,
+    private val allProjectsExceptCurrent: List<String>
+) : NotificationAction("Fix path") {
+    override fun actionPerformed(e: AnActionEvent, notification: Notification) {
+        val project = e.project ?: return
+        val fileEditorManager = FileEditorManager.getInstance(project)
+        val openedFiles = fileEditorManager.openFiles
+
+        openedFiles.forEach { openedFile ->
+            fileEditorManager.closeFile(openedFile)
+
+            val wrongPath = allProjectsExceptCurrent.firstOrNull { worktree -> openedFile.path.startsWith(worktree) }
+            val fileWithCorrectPath = if (wrongPath != null) {
+                val correctPath = Path(openedFile.path.replace(wrongPath, currentProjectPath))
+                VfsUtil.findFile(correctPath, true) ?: openedFile
+            } else {
+                openedFile
+            }
+
+            fileEditorManager.openFile(fileWithCorrectPath, false)
+        }
     }
 }

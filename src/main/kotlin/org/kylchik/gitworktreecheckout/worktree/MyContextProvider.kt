@@ -26,16 +26,7 @@ class MyContextProvider: WorkingContextProvider() {
     override fun loadContext(project: Project, fromElement: Element) {
         val gitRepositoryManager = GitRepositoryManager.getInstance(project)
         val currentProjectPath = gitRepositoryManager.repositories[0].root.path + File.separator
-        val gitWorktreeDir = gitRepositoryManager.repositories.first().repositoryFiles.worktreesDirFile
-        val mainRepositoryPath = gitWorktreeDir.parentFile.parentFile.absolutePath + File.separator
-        val locationOfGitDirInWorktrees = gitWorktreeDir.listFiles()?.mapNotNull { worktreeGit ->
-            worktreeGit.listFiles(FileFilter { it.path.endsWith("gitdir") })
-                ?.single()
-                ?.readLines()
-                ?.first()
-        } ?: return
-        val worktreesPaths = locationOfGitDirInWorktrees.map { it.removeSuffix(".git") }
-        val allProjects = listOf(mainRepositoryPath) + worktreesPaths
+        val allProjects = gitRepositoryManager.allProjectsOfGivenGit() ?: return
         val allProjectsExceptCurrent = allProjects.filter { it != currentProjectPath }
 
         val fileEditorManager = FileEditorManager.getInstance(project)
@@ -64,5 +55,18 @@ class MyContextProvider: WorkingContextProvider() {
                 }
             }).notify(project)
         }
+    }
+
+    private fun GitRepositoryManager.allProjectsOfGivenGit(): List<String>? {
+        val gitWorktreeDir = this.repositories.first().repositoryFiles.worktreesDirFile
+        val mainRepositoryPath = gitWorktreeDir.parentFile.parentFile.absolutePath + File.separator
+        val locationOfGitDirInWorktrees = gitWorktreeDir.listFiles()?.mapNotNull { worktreeGit ->
+            worktreeGit.listFiles(FileFilter { it.path.endsWith("gitdir") })
+                ?.single()
+                ?.readLines()
+                ?.first()
+        } ?: return null
+        val worktreesPaths = locationOfGitDirInWorktrees.map { it.removeSuffix(".git") }
+        return listOf(mainRepositoryPath) + worktreesPaths
     }
 }

@@ -25,6 +25,6 @@
          Read more: https://plugins.jetbrains.com/docs/intellij/plugin-extension-points.html -->
     <extensions defaultExtensionNs="com.intellij">
         <tasks.contextProvider implementation="org.kylchik.gitworktreecheckout.worktree.GitWorktreePathFixer"/>
-        <notificationGroup id="GitWorktreePathFixer Notification Group" displayType="BALLOON"/>
+        <notificationGroup id="Notification from `Git Worktree Checkout` plugin" displayType="BALLOON"/>
     </extensions>
 </idea-plugin>

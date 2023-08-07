@@ -24,7 +24,7 @@
     <!-- Extension points defined by the plugin.
          Read more: https://plugins.jetbrains.com/docs/intellij/plugin-extension-points.html -->
     <extensions defaultExtensionNs="com.intellij">
-        <tasks.contextProvider implementation="org.kylchik.gitworktreecheckout.worktree.MyContextProvider"/>
-        <notificationGroup id="MyContextProvider Notification Group" displayType="BALLOON"/>
+        <tasks.contextProvider implementation="org.kylchik.gitworktreecheckout.worktree.GitWorktreePathFixer"/>
+        <notificationGroup id="GitWorktreePathFixer Notification Group" displayType="BALLOON"/>
     </extensions>
 </idea-plugin>

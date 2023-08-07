@@ -12,16 +12,14 @@ import java.io.File
 import java.io.FileFilter
 import kotlin.io.path.Path
 
-class MyContextProvider: WorkingContextProvider() {
-    override fun getId(): String = "test"
-    override fun getDescription(): String = ""
+class GitWorktreePathFixer: WorkingContextProvider() {
+    override fun getId(): String = "GitWorktreePathFixer"
+    override fun getDescription(): String = "Change restored workspace to match opened project"
 
     private val NOTIFICATION = NotificationGroupManager.getInstance()
-        .getNotificationGroup("MyContextProvider Notification Group")
+        .getNotificationGroup("GitWorktreePathFixer Notification Group")
 
-    override fun saveContext(project: Project, toElement: Element) {
-//        println("Saved")
-    }
+    override fun saveContext(project: Project, toElement: Element) {}
 
     override fun loadContext(project: Project, fromElement: Element) {
         val gitRepositoryManager = GitRepositoryManager.getInstance(project)

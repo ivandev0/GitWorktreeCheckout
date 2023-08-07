@@ -5,6 +5,7 @@ import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.fileEditor.FileEditorManager
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.VfsUtil
+import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.tasks.context.WorkingContextProvider
 import git4idea.repo.GitRepositoryManager
 import org.jdom.Element
@@ -66,6 +67,8 @@ private class ChangePathAction(
         val project = e.project ?: return
         val fileEditorManager = FileEditorManager.getInstance(project)
         val openedFiles = fileEditorManager.openFiles
+        val selectedFile = fileEditorManager.selectedEditor?.file
+        var fileThatShouldBeInFocus: VirtualFile? = null
 
         openedFiles.forEach { openedFile ->
             fileEditorManager.closeFile(openedFile)
@@ -78,7 +81,12 @@ private class ChangePathAction(
                 openedFile
             }
 
+            if (selectedFile == openedFile) fileThatShouldBeInFocus = fileWithCorrectPath
             fileEditorManager.openFile(fileWithCorrectPath, false)
+        }
+
+        if (fileThatShouldBeInFocus != null) {
+            fileEditorManager.openFile(fileThatShouldBeInFocus!!, false, true)
         }
     }
 }

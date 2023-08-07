@@ -18,7 +18,7 @@ class GitWorktreePathFixer: WorkingContextProvider() {
     override fun getDescription(): String = "Change restored workspace to match opened project"
 
     private val NOTIFICATION = NotificationGroupManager.getInstance()
-        .getNotificationGroup("GitWorktreePathFixer Notification Group")
+        .getNotificationGroup("Notification from `Git Worktree Checkout` plugin")
 
     override fun saveContext(project: Project, toElement: Element) {}
 
@@ -88,5 +88,7 @@ private class ChangePathAction(
         if (fileThatShouldBeInFocus != null) {
             fileEditorManager.openFile(fileThatShouldBeInFocus!!, false, true)
         }
+
+        notification.expire()
     }
 }

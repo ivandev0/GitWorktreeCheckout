@@ -1,18 +1,24 @@
 package git4idea.test
 
-import com.intellij.ide.DataManager
 import com.intellij.notification.Notification
 import com.intellij.notification.NotificationAction
 import com.intellij.notification.Notifications
 import com.intellij.openapi.actionSystem.AnActionEvent
+import com.intellij.openapi.actionSystem.CommonDataKeys
+import com.intellij.openapi.actionSystem.impl.SimpleDataContext
+import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.fileEditor.FileEditor
 import com.intellij.openapi.fileEditor.FileEditorManager
 import com.intellij.openapi.fileEditor.OpenFileDescriptor
+import com.intellij.openapi.project.Project
+import com.intellij.openapi.vcs.AbstractVcsHelper
 import com.intellij.openapi.vfs.VfsUtil
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.testFramework.HeavyPlatformTestCase
+import com.intellij.testFramework.replaceService
 import com.intellij.util.io.write
 import com.intellij.util.messages.Topic
+import git4idea.commands.Git
 import junit.framework.TestCase
 import org.kylchik.gitworktreecheckout.worktree.GitWorktreePathFixer
 import java.io.File
@@ -23,6 +29,17 @@ import java.nio.file.Path
 import java.nio.file.Paths
 
 abstract class GitPlatformTest : HeavyPlatformTestCase() {
+    @Throws(Exception::class)
+    override fun setUp() {
+        super.setUp()
+
+        val vcsHelper = MockVcsHelper(myProject)
+        project.replaceService(AbstractVcsHelper::class.java, vcsHelper, testRootDisposable)
+
+        val git = TestGitImpl()
+        ApplicationManager.getApplication().replaceService(Git::class.java, git, testRootDisposable)
+    }
+
     protected fun createFile(dir: String, fileName: String, content: String = ""): VirtualFile {
         return createFile(Paths.get(dir), fileName, content)
     }
@@ -62,10 +79,11 @@ abstract class GitPlatformTest : HeavyPlatformTestCase() {
     }
 
     protected fun subscribeToNotifications(
+        projectRef: Project,
         container: MutableList<Notification>,
         topic: Topic<Notifications> = Notifications.TOPIC
     ) {
-        val connection = project.messageBus.connect(testRootDisposable)
+        val connection = projectRef.messageBus.connect(testRootDisposable)
         connection.subscribe(topic, object : Notifications {
             override fun notify(notification: Notification) {
                 container += notification
@@ -73,20 +91,21 @@ abstract class GitPlatformTest : HeavyPlatformTestCase() {
         })
     }
 
-    protected fun fixPath() {
+    protected fun fixPathFor(projectRef: Project) {
         val notifications = mutableListOf<Notification>()
-        subscribeToNotifications(notifications)
+        subscribeToNotifications(projectRef, notifications)
 
-        GitWorktreePathFixer().process(project)
+        GitWorktreePathFixer().process(projectRef)
 
         TestCase.assertEquals(1, notifications.size)
-        notifications.first().callAction()
+        notifications.first().callAction(projectRef)
     }
 
-    private fun Notification.callAction() {
+    private fun Notification.callAction(projectRef: Project) {
         val changePathAction = this.actions.first()
         // TODO use `TestActionEvent.createTestEvent` instead of `AnActionEvent.createFromAnAction`
-        val event = AnActionEvent.createFromAnAction(changePathAction, null, "", DataManager.getInstance().dataContext)
+        val dataContext = SimpleDataContext.builder().add(CommonDataKeys.PROJECT, projectRef).build()
+        val event = AnActionEvent.createFromAnAction(changePathAction, null, "", dataContext)
         (changePathAction as? NotificationAction)?.actionPerformed(event, this)
     }
 }

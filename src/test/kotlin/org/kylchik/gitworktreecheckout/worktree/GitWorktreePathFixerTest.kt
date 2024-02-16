@@ -1,9 +1,5 @@
 package org.kylchik.gitworktreecheckout.worktree
 
-import com.intellij.ide.DataManager
-import com.intellij.notification.Notification
-import com.intellij.notification.NotificationAction
-import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.fileEditor.FileEditorManager
 import com.intellij.project.stateStore
 import git4idea.test.GitPlatformTest
@@ -22,6 +18,11 @@ class GitWorktreePathFixerTest: GitPlatformTest() {
     private val projectNioRoot: Path
         get() = project.stateStore.getProjectBasePath()
 
+    override fun tearDown() {
+        FileEditorManager.getInstance(project).closeAllOpenedFiles()
+        super.tearDown()
+    }
+
     fun `test path is fixed for single file from worktree`() {
         // 1. Create project "A"
         createRepository(project, projectNioRoot, makeInitialCommit = true)
@@ -30,39 +31,73 @@ class GitWorktreePathFixerTest: GitPlatformTest() {
         git(project, "checkout -b dev")
 
         // 3. Create a file
-        createFile(mainProjectPath, "file.txt", "")
+        createFile(mainProjectPath, "file.txt")
 
         // 4. Commit a file
         addCommit("add new file `file.txt`")
 
         // 5. Create new worktree "B" with new branch "worktree_branch"
-        git(project, "worktree add -b worktree_branch ./worktree-project")
+        val worktreeProjectName = "worktree-project"
+        git(project, "worktree add -b worktree_branch ./$worktreeProjectName")
 
         // 7. Open a file that was previously created in project "A"
         val fileEditorManager = FileEditorManager.getInstance(project)
 
-        val worktreeProjectPath = mainProjectPath.resolve("worktree-project")
+        val worktreeProjectPath = mainProjectPath.resolve(worktreeProjectName)
         fileEditorManager.openFile(worktreeProjectPath.resolve("file.txt"))
         TestCase.assertEquals(1, fileEditorManager.openFiles.size)
+        TestCase.assertTrue(fileEditorManager.openFiles.first().path.endsWith("$worktreeProjectName${File.separator}file.txt"))
 
         // 8. Fix paths
-        val notifications = mutableListOf<Notification>()
-        subscribeToNotifications(notifications)
-
-        TestCase.assertTrue(fileEditorManager.openFiles.first().path.endsWith("worktree-project${File.separator}file.txt"))
-        GitWorktreePathFixer().process(project)
+        fixPath()
 
         // 9. Check the result
-        TestCase.assertEquals(1, notifications.size)
-
-        val notification = notifications.first()
-        val changePathAction = notification.actions.first()
-        // TODO use `TestActionEvent.createTestEvent` instead of `AnActionEvent.createFromAnAction`
-        val event = AnActionEvent.createFromAnAction(changePathAction, null, "", DataManager.getInstance().dataContext)
-        (changePathAction as? NotificationAction)?.actionPerformed(event, notification)
-
         TestCase.assertTrue(fileEditorManager.openFiles.first().path.endsWith("file.txt"))
-        TestCase.assertFalse(fileEditorManager.openFiles.first().path.endsWith("worktree-project${File.separator}file.txt"))
+        TestCase.assertFalse(fileEditorManager.openFiles.first().path.endsWith("$worktreeProjectName${File.separator}file.txt"))
+    }
+
+    fun `test path is fixed for multiple files from worktree`() {
+        // 1. Create project "A"
+        createRepository(project, projectNioRoot, makeInitialCommit = true)
+
+        // 2. Create branch "dev"
+        git(project, "checkout -b dev")
+
+        // 3. Create files
+        createFile(mainProjectPath, "file.txt")
+        createFile(mainProjectPath.resolve("subDir"), "fileInSubDir.txt")
+        createFile(mainProjectPath.resolve("subDir"), "secondFileInSubDir.txt")
+        createFile(mainProjectPath.resolve("subDir").resolve("subSubDir"), "fileInSubSubDir.txt")
+
+        // 4. Commit a file
+        addCommit("add new files")
+
+        // 5. Create new worktree "B" with new branch "worktree_branch"
+        val worktreeProjectName = "worktree-project"
+        git(project, "worktree add -b worktree_branch ./$worktreeProjectName")
+
+        // 7. Open files that were previously created in project "A"
+        val fileEditorManager = FileEditorManager.getInstance(project)
+
+        val worktreeProjectPath = mainProjectPath.resolve(worktreeProjectName)
+        fileEditorManager.openFiles(
+            worktreeProjectPath.resolve("file.txt"),
+            worktreeProjectPath.resolve("subDir").resolve("fileInSubDir.txt"),
+            worktreeProjectPath.resolve("subDir").resolve("secondFileInSubDir.txt"),
+            worktreeProjectPath.resolve("subDir").resolve("subSubDir").resolve("fileInSubSubDir.txt")
+        )
+        TestCase.assertEquals(4, fileEditorManager.openFiles.size)
+
+        // 8. Fix paths
+        fixPath()
+
+        // 9. Check the result
+        TestCase.assertEquals(4, fileEditorManager.openFiles.size)
+        TestCase.assertTrue(fileEditorManager.openFiles.none { it.path.contains(worktreeProjectName) })
+        TestCase.assertTrue(fileEditorManager.openFiles.any { it.path.endsWith("file.txt") })
+        TestCase.assertTrue(fileEditorManager.openFiles.any { it.path.endsWith("subDir${File.separator}fileInSubDir.txt") })
+        TestCase.assertTrue(fileEditorManager.openFiles.any { it.path.endsWith("subDir${File.separator}secondFileInSubDir.txt") })
+        TestCase.assertTrue(fileEditorManager.openFiles.any { it.path.endsWith("subDir${File.separator}subSubDir${File.separator}fileInSubSubDir.txt") })
     }
 
     fun test1() {

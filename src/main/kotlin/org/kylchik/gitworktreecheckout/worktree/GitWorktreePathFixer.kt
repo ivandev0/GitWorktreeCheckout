@@ -23,6 +23,10 @@ class GitWorktreePathFixer: WorkingContextProvider() {
     override fun saveContext(project: Project, toElement: Element) {}
 
     override fun loadContext(project: Project, fromElement: Element) {
+        process(project)
+    }
+
+    public fun process(project: Project) {
         val gitRepositoryManager = GitRepositoryManager.getInstance(project)
         val currentProjectPath = gitRepositoryManager.repositories[0].root.path + File.separator
         val allProjects = gitRepositoryManager.allProjectsOfGivenGit() ?: return

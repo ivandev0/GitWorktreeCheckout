@@ -1,8 +1,15 @@
 package git4idea.test
 
+import com.intellij.notification.Notification
+import com.intellij.notification.Notifications
+import com.intellij.openapi.fileEditor.FileEditor
+import com.intellij.openapi.fileEditor.FileEditorManager
+import com.intellij.openapi.fileEditor.OpenFileDescriptor
+import com.intellij.openapi.vfs.VfsUtil
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.testFramework.HeavyPlatformTestCase
 import com.intellij.util.io.write
+import com.intellij.util.messages.Topic
 import java.io.File
 import java.io.FileOutputStream
 import java.io.OutputStreamWriter
@@ -33,5 +40,23 @@ abstract class GitPlatformTest : HeavyPlatformTestCase() {
             file.write(text)
         }
         return file.toFile()
+    }
+
+    protected fun FileEditorManager.openFile(filePath: Path): List<FileEditor> {
+        val txtFileInB = VfsUtil.findFileByIoFile(filePath.toFile(), true)!!
+        val descriptor = OpenFileDescriptor(project, txtFileInB)
+        return this.openFileEditor(descriptor, true)
+    }
+
+    protected fun subscribeToNotifications(
+        container: MutableList<Notification>,
+        topic: Topic<Notifications> = Notifications.TOPIC
+    ) {
+        val connection = project.messageBus.connect(testRootDisposable)
+        connection.subscribe(topic, object : Notifications {
+            override fun notify(notification: Notification) {
+                container += notification
+            }
+        })
     }
 }

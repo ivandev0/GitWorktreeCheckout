@@ -3,13 +3,11 @@ package org.kylchik.gitworktreecheckout.worktree
 import com.intellij.ide.DataManager
 import com.intellij.notification.Notification
 import com.intellij.notification.NotificationAction
-import com.intellij.notification.Notifications
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.fileEditor.FileEditorManager
-import com.intellij.openapi.fileEditor.OpenFileDescriptor
-import com.intellij.openapi.vfs.VfsUtil
 import com.intellij.project.stateStore
-import git4idea.test.*
+import git4idea.test.GitPlatformTest
+import git4idea.test.addCommit
 import git4idea.test.createRepository
 import git4idea.test.git
 import junit.framework.TestCase
@@ -24,7 +22,7 @@ class GitWorktreePathFixerTest: GitPlatformTest() {
     private val projectNioRoot: Path
         get() = project.stateStore.getProjectBasePath()
 
-    fun test0() {
+    fun `test path is fixed for single file from worktree`() {
         // 1. Create project "A"
         createRepository(project, projectNioRoot, makeInitialCommit = true)
 
@@ -44,25 +42,19 @@ class GitWorktreePathFixerTest: GitPlatformTest() {
         val fileEditorManager = FileEditorManager.getInstance(project)
 
         val worktreeProjectPath = mainProjectPath.resolve("worktree-project")
-        val txtFileInB = VfsUtil.findFileByIoFile(worktreeProjectPath.resolve("file.txt").toFile(), true)!!
-        val descriptor = OpenFileDescriptor(project, txtFileInB)
-        fileEditorManager.openFileEditor(descriptor, true)
+        fileEditorManager.openFile(worktreeProjectPath.resolve("file.txt"))
         TestCase.assertEquals(1, fileEditorManager.openFiles.size)
 
         // 8. Fix paths
         val notifications = mutableListOf<Notification>()
-        val connection = project.messageBus.connect(testRootDisposable)
-        connection.subscribe(Notifications.TOPIC, object : Notifications {
-            override fun notify(notification: Notification) {
-                notifications += notification
-            }
-        })
+        subscribeToNotifications(notifications)
 
         TestCase.assertTrue(fileEditorManager.openFiles.first().path.endsWith("worktree-project${File.separator}file.txt"))
         GitWorktreePathFixer().process(project)
 
         // 9. Check the result
         TestCase.assertEquals(1, notifications.size)
+
         val notification = notifications.first()
         val changePathAction = notification.actions.first()
         // TODO use `TestActionEvent.createTestEvent` instead of `AnActionEvent.createFromAnAction`

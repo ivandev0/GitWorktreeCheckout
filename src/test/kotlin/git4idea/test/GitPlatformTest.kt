@@ -13,6 +13,7 @@ import com.intellij.openapi.fileEditor.OpenFileDescriptor
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.project.ex.ProjectManagerEx
 import com.intellij.openapi.vcs.AbstractVcsHelper
+import com.intellij.openapi.vcs.Executor
 import com.intellij.openapi.vfs.StandardFileSystems
 import com.intellij.openapi.vfs.VfsUtil
 import com.intellij.openapi.vfs.VirtualFile
@@ -56,6 +57,7 @@ abstract class GitPlatformTest : HeavyPlatformTestCase() {
             OpenProjectTaskBuilder().projectName(project.name).build()
         )!!
         registerRepo(projectB, worktreeProjectPath)
+        Executor.cd(project.basePath!!)
 
         return projectB
     }

@@ -140,9 +140,45 @@ class GitWorktreePathFixerTest: GitPlatformTest() {
         ProjectManagerEx.getInstanceEx().closeAndDispose(projectB)
     }
 
-    fun test2() {
-        // the same as test1, but we have some files not from any project
-        // check that these files have the same path as before action click
+    fun `test files outside project`() {
+        // 1. Create project "A"
+        createRepository(project, projectNioRoot, makeInitialCommit = true)
+
+        // 2. Create branch "dev"
+        git(project, "checkout -b dev")
+
+        // 3. Create two files: one in the main project and another outside.
+        createFile(mainProjectPath, "file.txt")
+        val fileOutsideProject = createFile(mainProjectPath.parent, "outside.txt")
+        val fileOutsideProjectPath = fileOutsideProject.toNioPath()
+
+        // 4. Commit a file
+        addCommit("add new files")
+
+        // 5. Create new worktree "B" with new branch "worktree-project"
+        val worktreeProjectName = "worktree-project"
+        val projectB = createWorktree(worktreeProjectName)
+        val worktreeProjectPath = Paths.get(projectB.basePath!!)
+
+        // 6. Open a file previously created in project "A"
+        val fileEditorManager = FileEditorManager.getInstance(project)
+        fileEditorManager.openFiles(
+            worktreeProjectPath.resolve("file.txt"),
+            fileOutsideProjectPath,
+        )
+        TestCase.assertEquals(2, fileEditorManager.openFiles.size)
+
+        // 7. Fix paths
+        fixPathFor(project)
+
+        // 8. Check the result
+        TestCase.assertTrue(fileEditorManager.openFiles.any { it.path.endsWith("file.txt") })
+        TestCase.assertTrue(fileEditorManager.openFiles.any { it.path == fileOutsideProjectPath.toString() })
+        TestCase.assertTrue(fileEditorManager.openFiles.none { it.path.contains(worktreeProjectName) })
+
+        // Tear down for `projectB`
+        ProjectManagerEx.getInstanceEx().closeAndDispose(projectB)
+        fileOutsideProjectPath.toFile().delete()
     }
 
     fun test3() {

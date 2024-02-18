@@ -112,11 +112,14 @@ abstract class GitPlatformTest : HeavyPlatformTestCase() {
     }
 
     protected fun fixPathFor(projectRef: Project) {
-        val notifications = mutableListOf<Notification>()
+        var notifications = mutableListOf<Notification>()
         subscribeToNotifications(projectRef, notifications)
 
         GitWorktreePathFixer().process(projectRef)
 
+        notifications = notifications
+            .filter { !it.groupId.contains("Externally added files can be added to") }
+            .toMutableList()
         TestCase.assertEquals(1, notifications.size)
         notifications.first().callAction(projectRef)
     }

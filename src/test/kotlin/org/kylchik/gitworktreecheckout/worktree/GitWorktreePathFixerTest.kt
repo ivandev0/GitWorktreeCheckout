@@ -1,5 +1,6 @@
 package org.kylchik.gitworktreecheckout.worktree
 
+import com.intellij.notification.Notification
 import com.intellij.openapi.fileEditor.FileEditorManager
 import com.intellij.openapi.project.ex.ProjectManagerEx
 import com.intellij.project.stateStore
@@ -181,13 +182,36 @@ class GitWorktreePathFixerTest: GitPlatformTest() {
         fileOutsideProjectPath.toFile().delete()
     }
 
-    fun test3() {
-        // create project A
-        // create new branch A1
-        // create an open some files in branch A1
-        // create new branch A2 and checkout
-        // checkout back to A1
-        // notification must not appear
+    fun `test no notification for the same project`() {
+        // 1. Create project "A"
+        createRepository(project, projectNioRoot, makeInitialCommit = true)
+
+        // 2. Create branch "dev"
+        git(project, "checkout -b dev")
+
+        // 3. Create a file
+        val file = createFile(mainProjectPath, "file.txt")
+
+        // 4. Commit a file
+        addCommit("add new file `file.txt`")
+
+        // 5. Open a file previously created in project "A"
+        val fileEditorManager = FileEditorManager.getInstance(project)
+        fileEditorManager.openFile(file.toNioPath())
+        TestCase.assertEquals(1, fileEditorManager.openFiles.size)
+        TestCase.assertTrue(fileEditorManager.openFiles.first().path == file.path)
+
+        // 6. Checkout back to "master"
+        git(project, "checkout master")
+
+        // 7. Fix paths
+        val notifications = mutableListOf<Notification>()
+        subscribeToNotifications(project, notifications)
+        GitWorktreePathFixer().process(project)
+        TestCase.assertEquals(0, notifications.size)
+
+        // 8. Check the result
+        TestCase.assertTrue(fileEditorManager.openFiles.first().path == file.path)
     }
 
     fun test4() {

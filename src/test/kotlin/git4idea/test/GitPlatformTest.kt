@@ -11,10 +11,13 @@ import com.intellij.openapi.fileEditor.FileEditor
 import com.intellij.openapi.fileEditor.FileEditorManager
 import com.intellij.openapi.fileEditor.OpenFileDescriptor
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.project.ex.ProjectManagerEx
 import com.intellij.openapi.vcs.AbstractVcsHelper
+import com.intellij.openapi.vfs.StandardFileSystems
 import com.intellij.openapi.vfs.VfsUtil
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.testFramework.HeavyPlatformTestCase
+import com.intellij.testFramework.OpenProjectTaskBuilder
 import com.intellij.testFramework.replaceService
 import com.intellij.util.io.write
 import com.intellij.util.messages.Topic
@@ -38,6 +41,23 @@ abstract class GitPlatformTest : HeavyPlatformTestCase() {
 
         val git = TestGitImpl()
         ApplicationManager.getApplication().replaceService(Git::class.java, git, testRootDisposable)
+    }
+
+    protected fun createWorktree(branchName: String): Project {
+        git(project, "worktree add -b $branchName ./$branchName")
+        // NB: update is required. When we create a new worktree, this triggers `VCS_CONFIGURATION_CHANGED` event
+        // and `VcsRepositoryManager` starts to update. This captures the `WRITE_LOCK` that is never going to be released.
+        // When later we will call `registerRepo` method, it also tries to capture the same lock and deadlock appears.
+        StandardFileSystems.local().refresh(true)
+
+        val worktreeProjectPath = Paths.get(project.basePath!!).resolve(branchName)
+        val projectB = ProjectManagerEx.getInstanceEx().openProject(
+            worktreeProjectPath,
+            OpenProjectTaskBuilder().projectName(project.name).build()
+        )!!
+        registerRepo(projectB, worktreeProjectPath)
+
+        return projectB
     }
 
     protected fun createFile(dir: String, fileName: String, content: String = ""): VirtualFile {

@@ -2,10 +2,11 @@ package org.kylchik.gitworktreecheckout.worktree
 
 import com.intellij.openapi.fileEditor.FileEditorManager
 import com.intellij.openapi.project.ex.ProjectManagerEx
-import com.intellij.openapi.vfs.StandardFileSystems
 import com.intellij.project.stateStore
-import com.intellij.testFramework.OpenProjectTaskBuilder
-import git4idea.test.*
+import git4idea.test.GitPlatformTest
+import git4idea.test.addCommit
+import git4idea.test.createRepository
+import git4idea.test.git
 import junit.framework.TestCase
 import java.io.File
 import java.nio.file.Path
@@ -36,28 +37,21 @@ class GitWorktreePathFixerTest: GitPlatformTest() {
         // 4. Commit a file
         addCommit("add new file `file.txt`")
 
-        // 5. Create new worktree "B" with new branch "worktree_branch"
+        // 5. Create new worktree "B" with new branch "worktree-project"
         val worktreeProjectName = "worktree-project"
-        git(project, "worktree add -b worktree_branch ./$worktreeProjectName")
-        StandardFileSystems.local().refresh(true)
+        val projectB = createWorktree(worktreeProjectName)
+        val worktreeProjectPath = Paths.get(projectB.basePath!!)
 
-        // 7. Open a file previously created in project "A"
-        val worktreeProjectPath = mainProjectPath.resolve(worktreeProjectName)
-        val projectB = ProjectManagerEx.getInstanceEx().openProject(
-            worktreeProjectPath,
-            OpenProjectTaskBuilder().projectName(project.name).build()
-        )!!
-        registerRepo(projectB, worktreeProjectPath)
-
+        // 6. Open a file previously created in project "A"
         val fileEditorManager = FileEditorManager.getInstance(project)
         fileEditorManager.openFile(worktreeProjectPath.resolve("file.txt"))
         TestCase.assertEquals(1, fileEditorManager.openFiles.size)
         TestCase.assertTrue(fileEditorManager.openFiles.first().path.endsWith("$worktreeProjectName${File.separator}file.txt"))
 
-        // 8. Fix paths
+        // 7. Fix paths
         fixPathFor(project)
 
-        // 9. Check the result
+        // 8. Check the result
         TestCase.assertTrue(fileEditorManager.openFiles.first().path.endsWith("file.txt"))
         TestCase.assertFalse(fileEditorManager.openFiles.first().path.endsWith("$worktreeProjectName${File.separator}file.txt"))
 
@@ -81,19 +75,12 @@ class GitWorktreePathFixerTest: GitPlatformTest() {
         // 4. Commit a file
         addCommit("add new files")
 
-        // 5. Create new worktree "B" with new branch "worktree_branch"
+        // 5. Create new worktree "B" with new branch "worktree-project"
         val worktreeProjectName = "worktree-project"
-        git(project, "worktree add -b worktree_branch ./$worktreeProjectName")
-        StandardFileSystems.local().refresh(true)
+        val projectB = createWorktree(worktreeProjectName)
+        val worktreeProjectPath = Paths.get(projectB.basePath!!)
 
-        // 7. Open files that were previously created in project "A"
-        val worktreeProjectPath = mainProjectPath.resolve(worktreeProjectName)
-        val projectB = ProjectManagerEx.getInstanceEx().openProject(
-            worktreeProjectPath,
-            OpenProjectTaskBuilder().projectName(project.name).build()
-        )!!
-        registerRepo(projectB, worktreeProjectPath)
-
+        // 6. Open files that were previously created in project "A"
         val fileEditorManager = FileEditorManager.getInstance(project)
         fileEditorManager.openFiles(
             worktreeProjectPath.resolve("file.txt"),
@@ -103,10 +90,10 @@ class GitWorktreePathFixerTest: GitPlatformTest() {
         )
         TestCase.assertEquals(4, fileEditorManager.openFiles.size)
 
-        // 8. Fix paths
+        // 7. Fix paths
         fixPathFor(project)
 
-        // 9. Check the result
+        // 8. Check the result
         TestCase.assertEquals(4, fileEditorManager.openFiles.size)
         TestCase.assertTrue(fileEditorManager.openFiles.none { it.path.contains(worktreeProjectName) })
         TestCase.assertTrue(fileEditorManager.openFiles.any { it.path.endsWith("file.txt") })
@@ -131,31 +118,20 @@ class GitWorktreePathFixerTest: GitPlatformTest() {
         // 4. Commit a file
         addCommit("add new file `file.txt`")
 
-        // 5. Create new worktree "B" with new branch "worktree_branch"
+        // 5. Create new worktree "B" with new branch "worktree-project"
         val worktreeProjectName = "worktree-project"
-        git(project, "worktree add -b worktree_branch ./$worktreeProjectName")
-        // NB: update is required. When we create a new worktree, this triggers `VCS_CONFIGURATION_CHANGED` event
-        // and `VcsRepositoryManager` starts to update. This captures the `WRITE_LOCK` that is never going to be released.
-        // When later we will call `registerRepo` method, it also tries to capture the same lock and deadlock appears.
-        StandardFileSystems.local().refresh(true)
+        val projectB = createWorktree(worktreeProjectName)
 
-        // 7. Open a file previously created in project "A" as it was opened in "A"
-        val worktreeProjectPath = mainProjectPath.resolve(worktreeProjectName)
-        val projectB = ProjectManagerEx.getInstanceEx().openProject(
-            worktreeProjectPath,
-            OpenProjectTaskBuilder().projectName(project.name).build()
-        )!!
-        registerRepo(projectB, worktreeProjectPath)
-
+        // 6. Open a file previously created in project "A" as it was opened in "A"
         val fileEditorManager = FileEditorManager.getInstance(projectB)
         fileEditorManager.openFile(mainProjectPath.resolve("file.txt"))
         TestCase.assertEquals(1, fileEditorManager.openFiles.size)
         TestCase.assertTrue(fileEditorManager.openFiles.first().path == "$mainProjectPath${File.separator}file.txt")
 
-        // 8. Fix paths
+        // 7. Fix paths
         fixPathFor(projectB)
 
-        // 9. Check the result
+        // 8. Check the result
         TestCase.assertTrue(fileEditorManager.openFiles.first().path.endsWith("$worktreeProjectName${File.separator}file.txt"))
         TestCase.assertFalse(fileEditorManager.openFiles.first().path == "$mainProjectPath${File.separator}file.txt")
 

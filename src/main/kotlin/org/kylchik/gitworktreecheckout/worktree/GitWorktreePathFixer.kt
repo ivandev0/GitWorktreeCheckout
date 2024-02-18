@@ -44,7 +44,7 @@ class GitWorktreePathFixer: WorkingContextProvider() {
             val message = "There are files with wrong path that were opened in different worktree"
             NOTIFICATION
                 .createNotification(message, NotificationType.INFORMATION)
-                .addAction(ChangePathAction(currentProjectPath, allProjectsExceptCurrent))
+                .addAction(ChangePathAction(currentProjectPath, allProjectsExceptCurrent.sortedDescending()))
                 .notify(project)
         }
     }

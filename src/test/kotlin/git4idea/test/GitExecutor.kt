@@ -5,6 +5,7 @@ package git4idea.test
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.io.FileUtil
 import com.intellij.openapi.util.text.StringUtil
+import com.intellij.openapi.vcs.Executor
 import com.intellij.openapi.vcs.Executor.*
 import com.intellij.openapi.vfs.VfsUtil
 import com.intellij.testFramework.vcs.ExecutableHelper
@@ -62,9 +63,13 @@ private fun add(project: Project, path: String = ".") = git(project, "add --verb
 
 fun GitRepository.addCommit(message: String) = cd { addCommit(project, message) }
 fun GitPlatformTest.addCommit(message: String) = addCommit(project, message)
-private fun addCommit(project: Project, message: String): String {
+fun addCommit(project: Project, message: String): String {
+  val workingDir = ourCurrentDir()
+  cd(project.basePath!!)
   add(project)
-  return commit(project, message)
+  return commit(project, message).also {
+    cd(workingDir)
+  }
 }
 
 fun GitRepository.deleteBranch(name: String) = cd { deleteBranch(project, name) }

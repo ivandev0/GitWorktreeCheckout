@@ -373,7 +373,41 @@ class GitWorktreePathFixerTest: GitPlatformTest() {
         ProjectManagerEx.getInstanceEx().closeAndDispose(projectC)
     }
 
-    fun test0() {
-        // worktrees are outside the main project directory
+    fun `test worktrees that are outside the main project directory`() {
+        // 1. Create project "A"
+        createRepository(project, projectNioRoot, makeInitialCommit = true)
+
+        // 2. Create branch "dev"
+        git(project, "checkout -b dev")
+
+        // 3. Create a file
+        createFile(mainProjectPath, "file.txt")
+
+        // 4. Commit a file
+        addCommit(project, "add new file `file.txt`")
+
+        val worktreeProjectName = "worktree-project"
+        val worktreeProjectPath = Paths.get("${Executor.ourCurrentDir()}/../$worktreeProjectName").normalize()
+        try {
+            // 5. Create new worktree "B" with new branch "worktree-project"
+            val projectB = createWorktree(worktreeProjectName, worktreeProjectPath)
+
+            // 6. Open a file previously created in project "A"
+            val fileEditorManager = FileEditorManager.getInstance(project)
+            fileEditorManager.openFile(worktreeProjectPath.resolve("file.txt"))
+            TestCase.assertEquals(1, fileEditorManager.openFiles.size)
+            TestCase.assertEquals("$worktreeProjectPath${File.separator}file.txt", fileEditorManager.openFiles.first().path)
+
+            // 7. Fix paths
+            fixPathFor(project)
+
+            // 8. Check the result
+            TestCase.assertEquals("$mainProjectPath${File.separator}file.txt", fileEditorManager.openFiles.first().path)
+
+            // Tear down for `projectB`
+            ProjectManagerEx.getInstanceEx().closeAndDispose(projectB)
+        } finally {
+            worktreeProjectPath.toFile().deleteRecursively()
+        }
     }
 }

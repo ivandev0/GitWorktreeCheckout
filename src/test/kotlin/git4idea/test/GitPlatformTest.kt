@@ -44,14 +44,16 @@ abstract class GitPlatformTest : HeavyPlatformTestCase() {
         ApplicationManager.getApplication().replaceService(Git::class.java, git, testRootDisposable)
     }
 
-    protected fun createWorktree(branchName: String): Project {
-        git(project, "worktree add -b $branchName ./$branchName")
+    protected fun createWorktree(
+        branchName: String,
+        worktreeProjectPath: Path = Paths.get("${Executor.ourCurrentDir()}/$branchName")
+    ): Project {
+        git(project, "worktree add -b $branchName $worktreeProjectPath")
         // NB: update is required. When we create a new worktree, this triggers `VCS_CONFIGURATION_CHANGED` event
         // and `VcsRepositoryManager` starts to update. This captures the `WRITE_LOCK` that is never going to be released.
         // When later we will call `registerRepo` method, it also tries to capture the same lock and deadlock appears.
         StandardFileSystems.local().refresh(true)
 
-        val worktreeProjectPath = Paths.get(project.basePath!!).resolve(branchName)
         val projectB = ProjectManagerEx.getInstanceEx().openProject(
             worktreeProjectPath,
             OpenProjectTaskBuilder().projectName(project.name).build()

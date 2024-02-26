@@ -1,17 +1,22 @@
 package org.kylchik.gitworktreecheckout.worktree
 
-import com.intellij.notification.*
+import com.intellij.notification.Notification
+import com.intellij.notification.NotificationAction
+import com.intellij.notification.NotificationGroupManager
+import com.intellij.notification.NotificationType
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.fileEditor.FileEditorManager
+import com.intellij.openapi.fileEditor.impl.FileEditorManagerImpl
 import com.intellij.openapi.project.Project
-import com.intellij.openapi.vfs.VfsUtil
-import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.tasks.context.WorkingContextProvider
 import git4idea.repo.GitRepositoryManager
 import org.jdom.Element
 import java.io.File
 import java.io.FileFilter
-import kotlin.io.path.Path
+
+private fun getProdFileEditorManager(project: Project): FileEditorManagerImpl? {
+    return FileEditorManager.getInstance(project) as? FileEditorManagerImpl
+}
 
 class GitWorktreePathFixer: WorkingContextProvider() {
     override fun getId(): String = "GitWorktreePathFixer"
@@ -20,13 +25,12 @@ class GitWorktreePathFixer: WorkingContextProvider() {
     private val NOTIFICATION = NotificationGroupManager.getInstance()
         .getNotificationGroup("Notification from `Git Worktree Checkout` plugin")
 
-    override fun saveContext(project: Project, toElement: Element) {}
-
-    override fun loadContext(project: Project, fromElement: Element) {
-        process(project)
+    override fun saveContext(project: Project, toElement: Element) {
+        val fileEditorManager = getProdFileEditorManager(project)
+        fileEditorManager?.mainSplitters?.writeExternal(toElement)
     }
 
-    public fun process(project: Project) {
+    override fun loadContext(project: Project, fromElement: Element) {
         val gitRepositoryManager = GitRepositoryManager.getInstance(project)
         val currentProjectPath = gitRepositoryManager.repositories[0].root.path + File.separator
         val allProjects = gitRepositoryManager.allProjectsOfGivenGit() ?: return
@@ -42,9 +46,13 @@ class GitWorktreePathFixer: WorkingContextProvider() {
 
         if (filesWithWrongPath.isNotEmpty()) {
             val message = "There are files with wrong path that were opened in different worktree"
+            val projectsPaths = buildList {
+                add(currentProjectPath)
+                addAll(allProjectsExceptCurrent.sortedDescending())
+            }
             NOTIFICATION
                 .createNotification(message, NotificationType.INFORMATION)
-                .addAction(ChangePathAction(currentProjectPath, allProjectsExceptCurrent.sortedDescending()))
+                .addAction(ChangePathAction(fromElement, projectsPaths))
                 .notify(project)
         }
     }
@@ -64,35 +72,50 @@ class GitWorktreePathFixer: WorkingContextProvider() {
 }
 
 private class ChangePathAction(
-    private val currentProjectPath: String,
-    private val allProjectsExceptCurrent: List<String>
+    private val element: Element,
+    private val projectsPaths: List<String>
 ) : NotificationAction("Fix path") {
     override fun actionPerformed(e: AnActionEvent, notification: Notification) {
         val project = e.project ?: return
-        val fileEditorManager = FileEditorManager.getInstance(project)
-        val openedFiles = fileEditorManager.openFiles
-        val selectedFile = fileEditorManager.selectedEditor?.file
-        var fileThatShouldBeInFocus: VirtualFile? = null
+        val fileEditorManager = getProdFileEditorManager(project) ?: return
+        fixPathsInElement(element, projectsPaths)
 
-        openedFiles.forEach { openedFile ->
-            fileEditorManager.closeFile(openedFile)
-
-            val wrongPath = allProjectsExceptCurrent.firstOrNull { worktree -> openedFile.path.startsWith(worktree) }
-            val fileWithCorrectPath = if (wrongPath != null) {
-                val correctPath = Path(openedFile.path.replace(wrongPath, currentProjectPath))
-                VfsUtil.findFile(correctPath, true) ?: openedFile
-            } else {
-                openedFile
-            }
-
-            if (selectedFile == openedFile) fileThatShouldBeInFocus = fileWithCorrectPath
-            fileEditorManager.openFile(fileWithCorrectPath, false)
-        }
-
-        if (fileThatShouldBeInFocus != null) {
-            fileEditorManager.openFile(fileThatShouldBeInFocus!!, false, true)
-        }
+        fileEditorManager.mainSplitters.removeAll()
+        fileEditorManager.mainSplitters.readExternal(element)
+        fileEditorManager.mainSplitters.openFiles()
 
         notification.expire()
+    }
+}
+
+private fun fixPath(projectsPaths: List<String>, oldPath: String): String {
+    val currentProjectPath = projectsPaths.first()
+    val allProjectsExceptCurrent = projectsPaths.drop(1)
+
+    val wrongPath = allProjectsExceptCurrent.firstOrNull { worktree -> oldPath.startsWith("file://$worktree") }
+    if (wrongPath != null) {
+        return oldPath.replace(wrongPath, currentProjectPath)
+    }
+    return oldPath
+}
+
+private fun fixPathsInElement(element: Element, projectsPaths: List<String>) {
+    val splitterElement = element.getChild("splitter")
+    val first = splitterElement?.getChild("split-first")
+    val second = splitterElement?.getChild("split-second")
+
+    if (first == null || second == null) {
+        element.getChild("leaf")?.getChildren("file")?.let { files ->
+            files.forEach { file ->
+                val entry = file.getChild("entry")
+                val oldPath = entry.getAttributeValue("file")
+                val newPath = fixPath(projectsPaths, oldPath)
+                entry.setAttribute("file", newPath)
+            }
+        }
+    }
+    else {
+        fixPathsInElement(first, projectsPaths)
+        fixPathsInElement(second, projectsPaths)
     }
 }

@@ -99,7 +99,7 @@ private fun fixPath(projectsPaths: List<String>, oldPath: String): String {
     return oldPath
 }
 
-private fun fixPathsInElement(element: Element, projectsPaths: List<String>) {
+fun fixPathsInElement(element: Element, projectsPaths: List<String>) {
     val splitterElement = element.getChild("splitter")
     val first = splitterElement?.getChild("split-first")
     val second = splitterElement?.getChild("split-second")

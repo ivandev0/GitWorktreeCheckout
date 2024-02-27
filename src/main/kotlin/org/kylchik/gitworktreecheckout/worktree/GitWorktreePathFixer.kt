@@ -100,22 +100,12 @@ private fun fixPath(projectsPaths: List<String>, oldPath: String): String {
 }
 
 fun fixPathsInElement(element: Element, projectsPaths: List<String>) {
-    val splitterElement = element.getChild("splitter")
-    val first = splitterElement?.getChild("split-first")
-    val second = splitterElement?.getChild("split-second")
-
-    if (first == null || second == null) {
-        element.getChild("leaf")?.getChildren("file")?.let { files ->
-            files.forEach { file ->
-                val entry = file.getChild("entry")
-                val oldPath = entry.getAttributeValue("file")
-                val newPath = fixPath(projectsPaths, oldPath)
-                entry.setAttribute("file", newPath)
-            }
+    object : ElementVisitor() {
+        override fun visitFile(file: Element) {
+            val entry = file.getChild("entry")
+            val oldPath = entry.getAttributeValue("file")
+            val newPath = fixPath(projectsPaths, oldPath)
+            entry.setAttribute("file", newPath)
         }
-    }
-    else {
-        fixPathsInElement(first, projectsPaths)
-        fixPathsInElement(second, projectsPaths)
-    }
+    }.visit(element)
 }

@@ -11,7 +11,7 @@ with a given branch. This plugin checks if the restored workspace contains files
 working directory. This is exactly the case when working with worktrees in IntelliJ IDEA. If such files
 were found, the plugin will show a notification and will suggest to fix files' paths.
 
-![Notification Window](pic/notification_window.jpeg)
+![Notification Window](https://raw.githubusercontent.com/ivandev0/GitWorktreeCheckout/master/pic/notification_window.jpeg)
 
 ### Main features
 

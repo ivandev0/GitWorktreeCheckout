@@ -5,14 +5,6 @@
 
     <vendor email="cilcic.v22@gmail.com">Ivan Kylchik</vendor>
 
-    <!-- Description of the plugin displayed on the Plugin Page and IDE Plugin Manager.
-         Simple HTML elements (text formatting, paragraphs, and lists) can be added inside of <![CDATA[ ]]> tag.
-         Guidelines: https://plugins.jetbrains.com/docs/marketplace/plugin-overview-page.html#plugin-description -->
-    <description><![CDATA[
-    This plugin helps to check out git branch that was previously opened in different worktree.
-    It replaces previous project path to the correct one, where branch is opened.<br>
-  ]]></description>
-
     <!-- Product and plugin compatibility requirements.
          Read more: https://plugins.jetbrains.com/docs/intellij/plugin-compatibility.html -->
     <depends>com.intellij.modules.platform</depends>

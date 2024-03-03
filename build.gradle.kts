@@ -6,6 +6,7 @@ fun environment(key: String) = providers.environmentVariable(key)
 
 plugins {
     id("java")
+    id("idea")
     id("org.jetbrains.kotlin.jvm") version "1.8.21"
     id("org.jetbrains.intellij") version "1.14.2"
     id("org.jetbrains.changelog") version "2.2.0"
@@ -23,6 +24,12 @@ repositories {
 
 dependencies {
     testImplementation("org.assertj:assertj-core:3.11.1")
+}
+
+idea {
+    module {
+        isDownloadSources = true
+    }
 }
 
 // Configure Gradle IntelliJ Plugin

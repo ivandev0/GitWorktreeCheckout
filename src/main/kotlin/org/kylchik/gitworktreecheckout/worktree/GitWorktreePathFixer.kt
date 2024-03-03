@@ -85,14 +85,12 @@ private class ChangePathAction(
         val project = e.project ?: return
         val fileEditorManager = getProdFileEditorManager(project) ?: return
 
-        runWithModalProgressBlocking(project, "Fixing editors after branch switch") {
-            reportRawProgress {
-                fixPathsInElement(element, projectsPaths)
+        fixPathsInElement(element, projectsPaths)
 
-                @Suppress("UnstableApiUsage")
-                fileEditorManager.mainSplitters.restoreEditors(EditorSplitterState(element), editorHadFocus())
-            }
-        }
+        fileEditorManager.mainSplitters.removeAll()
+        @Suppress("INVISIBLE_MEMBER")
+        fileEditorManager.mainSplitters.readExternal(element)
+        fileEditorManager.mainSplitters.openFilesAsync(editorHadFocus())
 
         notification.expire()
     }

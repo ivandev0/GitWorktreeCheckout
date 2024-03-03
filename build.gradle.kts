@@ -1,4 +1,5 @@
 import org.jetbrains.changelog.Changelog
+import org.jetbrains.changelog.date
 import org.jetbrains.changelog.markdownToHTML
 
 fun properties(key: String) = providers.gradleProperty(key)
@@ -44,7 +45,9 @@ intellij {
 
 // Configure Gradle Changelog Plugin - read more: https://github.com/JetBrains/gradle-changelog-plugin
 changelog {
+    version.set(properties("pluginVersion"))
     groups.empty()
+    header.set(provider { "${version.get()} - ${date()}" })
     repositoryUrl.set(properties("pluginRepositoryUrl"))
 }
 

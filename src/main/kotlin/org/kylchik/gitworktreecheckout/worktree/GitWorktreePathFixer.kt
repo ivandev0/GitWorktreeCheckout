@@ -81,8 +81,9 @@ private class ChangePathAction(
         fixPathsInElement(element, projectsPaths)
 
         fileEditorManager.mainSplitters.removeAll()
+        @Suppress("INVISIBLE_MEMBER")
         fileEditorManager.mainSplitters.readExternal(element)
-        fileEditorManager.mainSplitters.openFiles()
+        fileEditorManager.mainSplitters.openFilesAsync()
 
         notification.expire()
     }
